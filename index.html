@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Magnetic Fraction Book</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+
+/* body is the scroll container AND the offset parent for position:absolute pieces */
+body{
+  position:relative;
+  background:linear-gradient(135deg,#1b4332 0%,#2d6a4f 45%,#40916c 100%);
+  font-family:'Nunito',sans-serif;
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  padding-bottom:100px;
+}
+
+/* ── header ── */
+.hdr{width:100%;text-align:center;padding:22px 16px 6px;color:#fff;}
+.hdr h1{font-family:'Fredoka One',cursive;font-size:clamp(1.6rem,4vw,2.8rem);
+  text-shadow:2px 3px 8px rgba(0,0,0,.4);}
+.hdr p{font-size:.85rem;opacity:.7;margin-top:4px;}
+
+/* ── book ── */
+.bw{display:flex;justify-content:center;padding:12px 12px 0;width:100%;}
+.book{display:flex;max-width:1100px;width:100%;
+  border-radius:6px 14px 14px 6px;
+  box-shadow:0 20px 60px rgba(0,0,0,.55);overflow:hidden;}
+.spine{width:18px;flex-shrink:0;background:linear-gradient(180deg,#52b788,#1b4332);}
+.page{padding:16px 14px;flex:1;overflow:hidden;}
+.pl{background:#f9f0d0;border-right:2px solid #d9c9a0;}
+.pr{background:#fff8e8;}
+.ptitle{font-family:'Fredoka One',cursive;font-size:1.1rem;color:#3d2b1f;
+  border-bottom:2px dashed #c9b575;padding-bottom:5px;margin-bottom:10px;}
+
+/* ── tiles ── */
+.trow{display:flex;gap:2px;margin-bottom:3px;height:36px;}
+.tile{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:4px;cursor:grab;touch-action:none;user-select:none;
+  border:1.5px solid rgba(255,255,255,.2);transition:filter .12s,transform .1s;
+}
+.tile:hover{filter:brightness(1.2);transform:translateY(-2px);}
+.tile .tl{font-family:'Fredoka One',cursive;font-size:.6rem;color:rgba(255,255,255,.95);line-height:1;}
+.tile .td{font-size:.46rem;color:rgba(255,255,255,.62);}
+
+/* ── circles ── */
+.cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+/* touch-action:none on ccard prevents scroll-cancel killing the drag on mobile */
+.ccard{display:flex;flex-direction:column;align-items:center;
+  user-select:none;touch-action:none;}
+/* SVG has explicit width+height attrs (96×96); CSS scales it down if needed */
+.ccard svg{display:block;max-width:100%;height:auto;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.2));}
+.clbl{font-family:'Fredoka One',cursive;font-size:.72rem;color:#3d2b1f;
+  margin-top:3px;text-align:center;line-height:1.2;user-select:none;
+  padding:2px 6px;border-radius:4px;transition:background .12s;}
+.clbl.draggable{cursor:grab;touch-action:none;}
+.clbl.draggable:hover{background:rgba(0,0,0,.08);}
+.clbl small{font-family:'Nunito',sans-serif;font-size:.6rem;color:#6c5a3c;font-weight:700;}
+
+/* ── info bar ── */
+.ibar{margin-top:8px;background:#fff3cd;border:1.5px solid #f0c060;
+  border-radius:7px;padding:7px 11px;font-size:.8rem;color:#5a3e00;min-height:36px;}
+.ibar strong{color:#2c3e50;}
+
+/* ── floating pieces — position:absolute, scroll with page ── */
+.fp{
+  position:absolute;
+  cursor:grab;user-select:none;touch-action:none;
+  filter:drop-shadow(0 5px 14px rgba(0,0,0,.45));
+}
+.fp:active{cursor:grabbing;}
+/* tile inner div */
+.fptile{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:52px;border-radius:8px;border:2px solid rgba(255,255,255,.28);}
+.fptile .fl{font-family:'Fredoka One',cursive;font-size:.95rem;color:#fff;
+  line-height:1.1;text-align:center;}
+.fptile .fd{font-size:.56rem;color:rgba(255,255,255,.68);}
+/* SVG inside a floating piece — display only, no interaction */
+.fp svg{display:block;pointer-events:none;}
+
+/* ── drag ghost — fixed, follows cursor ── */
+#ghost{
+  position:fixed;pointer-events:none;z-index:9999;
+  transform:translate(-50%,-50%) rotate(-5deg) scale(1.06);
+  filter:drop-shadow(0 10px 22px rgba(0,0,0,.5));
+  opacity:.82;
+}
+#ghost *{pointer-events:none;}
+
+/* ── quiz ── */
+.qwrap{background:#fff8e8;border-radius:14px;padding:18px 20px;
+  margin:18px 12px 0;max-width:1100px;width:calc(100% - 24px);
+  box-shadow:0 6px 24px rgba(0,0,0,.2);}
+.qwrap h2{font-family:'Fredoka One',cursive;font-size:1.2rem;color:#2c3e50;margin-bottom:8px;}
+.qscore{font-size:.78rem;color:#6c5a3c;margin-bottom:6px;}
+.qq{font-size:.9rem;color:#3d2b1f;font-weight:700;margin-bottom:10px;}
+.qopts{display:flex;flex-wrap:wrap;gap:7px;}
+.qopts button{font-family:'Fredoka One',cursive;font-size:.86rem;
+  padding:6px 14px;border:2px solid #d9c9a0;background:#fff;
+  border-radius:7px;cursor:pointer;transition:background .1s,border-color .1s;}
+.qopts button:hover{background:#ffeaa7;border-color:#c8960c;}
+.qopts button.ok{background:#27ae60;color:#fff;border-color:#27ae60;}
+.qopts button.bad{background:#e74c3c;color:#fff;border-color:#e74c3c;}
+.qfb{margin-top:8px;font-weight:700;font-size:.86rem;min-height:18px;}
+.qnext{margin-top:9px;font-family:'Fredoka One',cursive;font-size:.88rem;
+  padding:6px 18px;background:linear-gradient(135deg,#27ae60,#1b4332);
+  color:#fff;border:none;border-radius:50px;cursor:pointer;
+  box-shadow:0 3px 10px rgba(0,0,0,.2);display:none;}
+
+footer{color:rgba(255,255,255,.3);font-size:.7rem;padding:14px 0 4px;text-align:center;}
+
+@media(max-width:600px){
+  .book{flex-direction:column;}
+  .spine{width:100%;height:12px;}
+  .pl{border-right:none;border-bottom:2px solid #d9c9a0;}
+  .cgrid{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>📚 Magnetic Fraction Book</h1>
+  <p>Drag tiles or pie slices anywhere · Double-click a floating piece to remove it</p>
+</div>
+
+<div class="bw">
+  <div class="book">
+    <div class="spine"></div>
+    <div class="page pl">
+      <div class="ptitle">📐 Fraction Tiles</div>
+      <div id="tiles"></div>
+      <div class="ibar" id="ibar">Hover or drag any piece onto the page</div>
+    </div>
+    <div class="page pr">
+      <div class="ptitle">🔵 Fraction Circles</div>
+      <div class="cgrid" id="circles"></div>
+    </div>
+  </div>
+</div>
+
+<div class="qwrap">
+  <h2>🧠 Quiz</h2>
+  <div class="qscore" id="qscore">Score: 0 / 0</div>
+  <div class="qq" id="qq">Loading…</div>
+  <div class="qopts" id="qopts"></div>
+  <div class="qfb" id="qfb"></div>
+  <button class="qnext" id="qnext" onclick="nextQ()">Next →</button>
+</div>
+
+<footer>Inspired by the Relativelk Magnetic Fraction Demonstration Book</footer>
+
+<!-- ghost follows the cursor during drag -->
+<div id="ghost" style="display:none;"></div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════════ */
+const FR = [
+  {n:1, d:1,  label:'1',    dec:1,      pct:'100%',  color:'#b03a2e'},
+  {n:1, d:2,  label:'½',    dec:0.5,    pct:'50%',   color:'#d35400'},
+  {n:1, d:3,  label:'⅓',    dec:0.333,  pct:'33.3%', color:'#c8960c'},
+  {n:1, d:4,  label:'¼',    dec:0.25,   pct:'25%',   color:'#27ae60'},
+  {n:1, d:5,  label:'⅕',    dec:0.2,    pct:'20%',   color:'#148f77'},
+  {n:1, d:6,  label:'⅙',    dec:0.1667, pct:'16.6%', color:'#1a5276'},
+  {n:1, d:8,  label:'⅛',    dec:0.125,  pct:'12.5%', color:'#6c3483'},
+  {n:1, d:10, label:'⅒',    dec:0.1,    pct:'10%',   color:'#c0392b'},
+  {n:1, d:12, label:'1/12', dec:0.0833, pct:'8.3%',  color:'#8e5573'},
+];
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const PIE_SIZE = 96; // source circle size in viewBox units
+
+/* ═══════════════════════════════════════════════
+   SVG BUILDERS
+   All SVG shapes get pointer-events="fill" when
+   interactive, pointer-events="none" when display-only.
+   The SVG container itself has NO pointer-events set
+   (defaults to visiblePainted, which on a transparent
+   background means the dead-zone corners fire nothing).
+═══════════════════════════════════════════════ */
+
+// Build a full pie — if onSliceFn provided, each wedge is draggable
+function buildPie(f, interactive) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${PIE_SIZE} ${PIE_SIZE}`);
+  svg.setAttribute('width',  PIE_SIZE);   // explicit attrs give the SVG intrinsic size
+  svg.setAttribute('height', PIE_SIZE);   // CSS max-width:100% scales it down on mobile
+
+  const cx = PIE_SIZE/2, cy = PIE_SIZE/2, r = PIE_SIZE/2 - 3;
+
+  if (f.d === 1) {
+    const c = document.createElementNS(SVG_NS, 'circle');
+    c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', r);
+    c.setAttribute('fill', f.color);
+    c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', '1.5');
+    c.setAttribute('pointer-events', interactive ? 'fill' : 'none');
+    if (interactive) {
+      c.style.cursor = 'grab';
+      c.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); interactive(0, e); });
+      c.addEventListener('mouseenter',  () => { c.style.filter = 'brightness(1.3)'; });
+      c.addEventListener('mouseleave',  () => { c.style.filter = ''; });
+    }
+    svg.appendChild(c);
+
+    const t = svgText(cx, cy, '1', 22);
+    t.setAttribute('pointer-events', 'none');
+    svg.appendChild(t);
+
+  } else {
+    const fs = f.d <= 4 ? 11 : f.d <= 8 ? 9 : 7;
+    for (let i = 0; i < f.d; i++) {
+      const a1 = (i / f.d) * 2*Math.PI - Math.PI/2;
+      const a2 = ((i+1) / f.d) * 2*Math.PI - Math.PI/2;
+      const x1 = cx + r*Math.cos(a1), y1 = cy + r*Math.sin(a1);
+      const x2 = cx + r*Math.cos(a2), y2 = cy + r*Math.sin(a2);
+      const large = (a2 - a1 > Math.PI) ? 1 : 0;
+      const am = (a1+a2)/2;
+      const lx = cx + r*0.62*Math.cos(am), ly = cy + r*0.62*Math.sin(am);
+
+      const path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('d',
+        `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} ` +
+        `A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`);
+      path.setAttribute('fill', f.color);
+      path.setAttribute('stroke', '#fff'); path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('pointer-events', interactive ? 'fill' : 'none');
+
+      if (interactive) {
+        path.style.cursor = 'grab';
+        // IIFE to capture i correctly
+        (idx => {
+          path.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); interactive(idx, e); });
+          path.addEventListener('mouseenter',  () => { path.style.filter = 'brightness(1.3)'; });
+          path.addEventListener('mouseleave',  () => { path.style.filter = ''; });
+        })(i);
+      }
+      svg.appendChild(path);
+
+      const t = svgText(lx, ly, `${f.n}/${f.d}`, fs);
+      t.setAttribute('pointer-events', 'none');
+      svg.appendChild(t);
+    }
+  }
+  return svg;
+}
+
+// Build a single slice SVG (display-only, all pointer-events none)
+function buildSlice(f, si) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${PIE_SIZE} ${PIE_SIZE}`);
+  svg.setAttribute('width',  PIE_SIZE);
+  svg.setAttribute('height', PIE_SIZE);
+
+  const cx = PIE_SIZE/2, cy = PIE_SIZE/2, r = PIE_SIZE/2 - 3;
+
+  if (f.d === 1) {
+    const c = document.createElementNS(SVG_NS, 'circle');
+    c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', r);
+    c.setAttribute('fill', f.color);
+    c.setAttribute('stroke', '#fff'); c.setAttribute('stroke-width', '1.5');
+    c.setAttribute('pointer-events', 'none');
+    svg.appendChild(c);
+    const t = svgText(cx, cy, '1', 22);
+    t.setAttribute('pointer-events', 'none');
+    svg.appendChild(t);
+    return svg;
+  }
+
+  const fs = f.d <= 4 ? 11 : f.d <= 8 ? 9 : 7;
+  const a1 = (si / f.d) * 2*Math.PI - Math.PI/2;
+  const a2 = ((si+1) / f.d) * 2*Math.PI - Math.PI/2;
+  const x1 = cx + r*Math.cos(a1), y1 = cy + r*Math.sin(a1);
+  const x2 = cx + r*Math.cos(a2), y2 = cy + r*Math.sin(a2);
+  const large = (a2 - a1 > Math.PI) ? 1 : 0;
+  const am = (a1+a2)/2;
+  const lx = cx + r*0.62*Math.cos(am), ly = cy + r*0.62*Math.sin(am);
+
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d',
+    `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} ` +
+    `A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`);
+  path.setAttribute('fill', f.color);
+  path.setAttribute('stroke', '#fff'); path.setAttribute('stroke-width', '2');
+  path.setAttribute('pointer-events', 'none');
+  svg.appendChild(path);
+
+  const t = svgText(lx, ly, `${f.n}/${f.d}`, fs);
+  t.setAttribute('pointer-events', 'none');
+  svg.appendChild(t);
+  return svg;
+}
+
+function svgText(x, y, txt, fs) {
+  const t = document.createElementNS(SVG_NS, 'text');
+  t.setAttribute('x', x.toFixed(2)); t.setAttribute('y', y.toFixed(2));
+  t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'middle');
+  t.setAttribute('fill', 'rgba(255,255,255,0.95)');
+  t.setAttribute('font-family', 'Fredoka One,cursive');
+  t.setAttribute('font-size', String(fs));
+  t.textContent = txt;
+  return t;
+}
+
+/* ═══════════════════════════════════════════════
+   TILE WIDTH — proportional to fraction value
+═══════════════════════════════════════════════ */
+function tileW(f) { return Math.max(22, Math.round(f.dec * 230)); }
+
+/* ═══════════════════════════════════════════════
+   Z-INDEX — monotonic, last touched always on top
+═══════════════════════════════════════════════ */
+let topZ = 100;
+function bringToTop(el) { el.style.zIndex = String(++topZ); }
+
+/* ═══════════════════════════════════════════════
+   DRAG ENGINE
+   - startDrag(e, buildGhostFn, onDropFn)
+     called from any source element's pointerdown.
+   - onDropFn(pageX, pageY) is called on pointerup.
+   - Placed pieces use the same engine.
+═══════════════════════════════════════════════ */
+let activeDrag = null;
+
+function startDrag(e, ghostEl, onDrop) {
+  // show ghost at cursor
+  const g = document.getElementById('ghost');
+  g.innerHTML = '';
+  g.appendChild(ghostEl);
+  g.style.display = 'block';
+  g.style.left = e.clientX + 'px';
+  g.style.top  = e.clientY + 'px';
+
+  activeDrag = { ghost: true, onDrop };
+
+  document.addEventListener('pointermove',   onDragMove,   {passive: false});
+  document.addEventListener('pointerup',     onDragUp);
+  document.addEventListener('pointercancel', onDragCancel);
+}
+
+function startMovePiece(e, fp) {
+  bringToTop(fp);
+  // hide ghost
+  document.getElementById('ghost').style.display = 'none';
+
+  activeDrag = {
+    ghost: false,
+    fp,
+    ox: e.pageX - parseInt(fp.style.left, 10),
+    oy: e.pageY - parseInt(fp.style.top,  10),
+  };
+
+  document.addEventListener('pointermove',   onDragMove,   {passive: false});
+  document.addEventListener('pointerup',     onDragUp);
+  document.addEventListener('pointercancel', onDragCancel);
+}
+
+function onDragMove(e) {
+  if (!activeDrag) return;
+  e.preventDefault();
+  if (activeDrag.ghost) {
+    const g = document.getElementById('ghost');
+    g.style.left = e.clientX + 'px';
+    g.style.top  = e.clientY + 'px';
+  } else {
+    activeDrag.fp.style.left = (e.pageX - activeDrag.ox) + 'px';
+    activeDrag.fp.style.top  = (e.pageY - activeDrag.oy) + 'px';
+  }
+}
+
+function onDragUp(e) {
+  if (!activeDrag) return;
+  cleanupDrag();
+  if (activeDrag && activeDrag.ghost && activeDrag.onDrop) {
+    // activeDrag still set here before we null it
+  }
+  // re-read because cleanupDrag nulls it — save ref first
+  const d = activeDrag;
+  activeDrag = null;
+  document.getElementById('ghost').style.display = 'none';
+  if (d && d.ghost && d.onDrop) {
+    d.onDrop(e.pageX, e.pageY);
+  }
+}
+
+function onDragCancel() {
+  cleanupDrag();
+  activeDrag = null;
+  document.getElementById('ghost').style.display = 'none';
+}
+
+function cleanupDrag() {
+  document.removeEventListener('pointermove',   onDragMove);
+  document.removeEventListener('pointerup',     onDragUp);
+  document.removeEventListener('pointercancel', onDragCancel);
+}
+
+/* ═══════════════════════════════════════════════
+   SPAWN FLOATING PIECE
+═══════════════════════════════════════════════ */
+function spawnPiece(type, f, si, pageX, pageY) {
+  const fp = document.createElement('div');
+  fp.className = 'fp';
+  fp.title = 'Double-click to remove';
+
+  let pw, ph;
+
+  if (type === 'tile') {
+    pw = tileW(f); ph = 52;
+    const inner = document.createElement('div');
+    inner.className = 'fptile';
+    inner.style.background = f.color;
+    inner.style.width = pw + 'px';
+    inner.innerHTML =
+      `<span class="fl">${f.n}/${f.d}</span><span class="fd">${f.dec.toFixed(3)}</span>`;
+    fp.appendChild(inner);
+
+  } else if (type === 'circle') {
+    pw = PIE_SIZE; ph = PIE_SIZE;
+    fp.appendChild(buildPie(f, null));   // display-only — no interaction needed
+
+  } else { // 'slice'
+    pw = PIE_SIZE; ph = PIE_SIZE;
+    fp.appendChild(buildSlice(f, si));
+  }
+
+  fp.style.left = (pageX - pw/2) + 'px';
+  fp.style.top  = (pageY - ph/2) + 'px';
+  bringToTop(fp);
+
+  // double-click removes
+  fp.addEventListener('dblclick', () => {
+    fp.style.transition = 'opacity .18s, transform .18s';
+    fp.style.opacity = '0';
+    fp.style.transform = 'scale(0.4)';
+    setTimeout(() => fp.remove(), 200);
+  });
+
+  // pointerdown on the piece starts a move
+  fp.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    startMovePiece(e, fp);
+  });
+
+  // pop-in animation; clear transition after so dragging is instant
+  fp.style.transform = 'scale(0.4) rotate(-8deg)';
+  fp.style.transition = 'transform .22s cubic-bezier(.34,1.56,.64,1)';
+  document.body.appendChild(fp);
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    fp.style.transform = 'scale(1) rotate(0deg)';
+    setTimeout(() => { fp.style.transition = 'none'; }, 240);
+  }));
+}
+
+/* ═══════════════════════════════════════════════
+   RENDER TILES
+═══════════════════════════════════════════════ */
+function renderTiles() {
+  const container = document.getElementById('tiles');
+  FR.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'trow';
+    for (let i = 0; i < f.d; i++) {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.style.background = f.color;
+      tile.innerHTML =
+        `<span class="tl">${f.n}/${f.d}</span><span class="td">${f.dec.toFixed(3)}</span>`;
+      tile.addEventListener('mouseenter', () => showInfo(f));
+      tile.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        const ghost = document.createElement('div');
+        ghost.className = 'fptile';
+        ghost.style.background = f.color;
+        ghost.style.width = tileW(f) + 'px';
+        ghost.innerHTML =
+          `<span class="fl">${f.n}/${f.d}</span><span class="fd">${f.dec.toFixed(3)}</span>`;
+        startDrag(e, ghost, (px, py) => spawnPiece('tile', f, null, px, py));
+      });
+      row.appendChild(tile);
+    }
+    container.appendChild(row);
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   RENDER CIRCLES
+═══════════════════════════════════════════════ */
+function renderCircles() {
+  const container = document.getElementById('circles');
+  FR.forEach(f => {
+    const card = document.createElement('div');
+    card.className = 'ccard';
+
+    // Interactive pie — callback fires when a slice (or the whole disc for d=1) is grabbed
+    const svg = buildPie(f, (si, e) => {
+      const ghost = buildSlice(f, si);
+      const type  = f.d === 1 ? 'circle' : 'slice';
+      startDrag(e, ghost, (px, py) => spawnPiece(type, f, si, px, py));
+    });
+
+    const lbl = document.createElement('div');
+    lbl.className = 'clbl';
+    lbl.innerHTML = `${f.label}<br><small>${f.pct} · ${f.dec.toFixed(3)}</small>`;
+    lbl.addEventListener('mouseenter', () => showInfo(f));
+
+    // Label is draggable only for d=1 (the whole disc)
+    if (f.d === 1) {
+      lbl.classList.add('draggable');
+      lbl.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        const ghost = buildPie(f, null);
+        startDrag(e, ghost, (px, py) => spawnPiece('circle', f, null, px, py));
+      });
+    }
+
+    card.appendChild(svg);
+    card.appendChild(lbl);
+    container.appendChild(card);
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   INFO BAR
+═══════════════════════════════════════════════ */
+function showInfo(f) {
+  document.getElementById('ibar').innerHTML =
+    `<strong>${f.n}/${f.d}</strong> = <strong>${f.dec.toFixed(4)}</strong> = <strong>${f.pct}</strong>`;
+}
+
+/* ═══════════════════════════════════════════════
+   QUIZ
+═══════════════════════════════════════════════ */
+let qs = 0, qt = 0;
+const shuf = a => [...a].sort(() => Math.random() - .5);
+const QT = [
+  f => ({q:`What is <strong>${f.n}/${f.d}</strong> as a decimal?`,
+         c: f.dec.toFixed(3),
+         w: () => shuf(FR.filter(x => x.d !== f.d)).slice(0,3).map(x => x.dec.toFixed(3))}),
+  f => ({q:`What is <strong>${f.n}/${f.d}</strong> as a percentage?`,
+         c: f.pct,
+         w: () => shuf(FR.filter(x => x.d !== f.d)).slice(0,3).map(x => x.pct)}),
+  f => ({q:`Which fraction equals <strong>${f.dec.toFixed(3)}</strong>?`,
+         c: `${f.n}/${f.d}`,
+         w: () => shuf(FR.filter(x => x.d !== f.d)).slice(0,3).map(x => `${x.n}/${x.d}`)}),
+  f => ({q:`<strong>${f.pct}</strong> as a fraction is?`,
+         c: `${f.n}/${f.d}`,
+         w: () => shuf(FR.filter(x => x.d !== f.d)).slice(0,3).map(x => `${x.n}/${x.d}`)}),
+];
+
+function nextQ() {
+  const f  = FR[Math.floor(Math.random() * FR.length)];
+  const tp = QT[Math.floor(Math.random() * QT.length)](f);
+  const opts = shuf([tp.c, ...tp.w()]);
+
+  document.getElementById('qq').innerHTML = tp.q;
+  document.getElementById('qfb').textContent = '';
+  document.getElementById('qnext').style.display = 'none';
+
+  const oe = document.getElementById('qopts');
+  oe.innerHTML = '';
+  opts.forEach(o => {
+    const b = document.createElement('button');
+    b.textContent = o;
+    b.onclick = () => {
+      oe.querySelectorAll('button').forEach(x => x.disabled = true);
+      qt++;
+      if (o === tp.c) {
+        b.classList.add('ok'); qs++;
+        document.getElementById('qfb').innerHTML = '✅ Correct!';
+      } else {
+        b.classList.add('bad');
+        oe.querySelectorAll('button').forEach(x => {
+          if (x.textContent === tp.c) x.classList.add('ok');
+        });
+        document.getElementById('qfb').innerHTML = `❌ Answer: <strong>${tp.c}</strong>`;
+      }
+      document.getElementById('qscore').textContent = `Score: ${qs} / ${qt}`;
+      document.getElementById('qnext').style.display = 'inline-block';
+    };
+    oe.appendChild(b);
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════ */
+renderTiles();
+renderCircles();
+nextQ();
+</script>
+</body>
+</html>
