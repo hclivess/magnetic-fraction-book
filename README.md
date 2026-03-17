@@ -1,7 +1,7 @@
 # 📚 Magnetic Fraction Book
 
 An interactive web app inspired by the [Relativelk Magnetic Fraction Demonstration Book](https://relativelk.com). Drag fraction tiles and pie slices freely anywhere on the page to visually compare and explore fractions.
-
+![image](image.png)
 ---
 
 ## Features
